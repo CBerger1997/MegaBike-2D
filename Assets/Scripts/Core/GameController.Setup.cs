@@ -121,7 +121,7 @@ public partial class GameController
             string to = toSeat >= 0 ? DisplayName ( toSeat ) : $"bike {toBike + 1} pot";
 
             SessionLogger.instance.LogEvent (
-                -1, "Wealth", "points_paid", fromSeat,
+                -1, toBike + 1, "Wealth", "points_paid", fromSeat,
                 DisplayName ( fromSeat ),
                 $"to:{to};amount:{paid}",
                 ScoresSummary ()
@@ -139,6 +139,10 @@ public partial class GameController
 
         int fromBike = slots[ seat ].bikeIndex;
 
+        // Noted so they cannot simply bounce straight back next time.
+        slots[ seat ].lastBikeLeft = fromBike;
+        slots[ seat ].lastLeftRound = roundNumber;
+
         slots[ seat ].bikeIndex = toBike;
 
         GameObject go = RiderObject ( seat );
@@ -151,9 +155,9 @@ public partial class GameController
         if ( SessionLogger.instance != null )
         {
             SessionLogger.instance.LogEvent (
-                -1, "Transfer", "transferred", seat,
+                -1, toBike + 1, "Transfer", "transferred", seat,
                 DisplayName ( seat ),
-                $"from:{fromBike + 1};to:{toBike + 1}",
+                $"from_bike:{fromBike + 1};colour:{slots[ seat ].colour}",
                 ScoresSummary ()
             );
         }
@@ -408,8 +412,29 @@ public partial class GameController
             slots.RemoveRange ( maxSeats, slots.Count - maxSeats );
         }
 
-        // Colours may be shared. Riders are identified by player number, so a
-        // shared colour is a common interest rather than a clash.
+        // Colours may be shared - riders are identified by player number, so a
+        // shared colour is a common interest rather than a clash. What must not
+        // happen is a seat left on a colour the palette doesn't cover, which is
+        // how riders ended up invisible.
+        int colourCount = Mathf.Min ( ColourCount, playerColours.Count );
+
+        if ( colourCount <= 0 )
+        {
+            Debug.LogError ( "GameController: palette is empty, cannot assign colours." );
+            return;
+        }
+
+        foreach ( RiderSlot slot in slots )
+        {
+            if ( ( int ) slot.colour >= colourCount || ( int ) slot.colour < 0 )
+            {
+                PlayerColour picked = ( PlayerColour ) Random.Range ( 0, colourCount );
+
+                Debug.LogWarning ( $"GameController: {slot.colour} is outside the palette, using {picked}." );
+
+                slot.colour = picked;
+            }
+        }
 
         foreach ( RiderSlot slot in slots )
             slot.inPlay = true;

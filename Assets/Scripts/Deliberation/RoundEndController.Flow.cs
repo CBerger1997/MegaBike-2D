@@ -59,8 +59,43 @@ public partial class RoundEndController
             if ( quitting )
                 return;
 
-            if ( Game.RidersOnBike ( bikeIndex ) < 2 )
+            int aboard = Game.RidersOnBike ( bikeIndex );
+
+            if ( aboard == 0 )
                 continue;
+
+            // A lone rider has nobody to deliberate with. If the Owdi caught
+            // them there is still a consequence - they are thrown off and must
+            // find another bike, or they are out.
+            if ( aboard == 1 )
+            {
+                if ( !forcedElimination )
+                    continue;
+
+                activeBikeIndex = bikeIndex;
+                voteCycle++;
+
+                RebuildRoster ();
+                BuildPanels ();
+
+                if ( randomisedIndex.Count == 1 )
+                {
+                    int lone = randomisedIndex[ 0 ];
+
+                    SetRoundLabel ( $"Bike {bikeIndex + 1} is caught" );
+
+                    LogConsole ( $"=== The Owdi caught bike {bikeIndex + 1} with only " +
+                                 $"{SeatName ( lone )} aboard. There is nobody to vote. ===" );
+
+                    LogPhaseEvent ( "lone_rider_caught", lone, "" );
+
+                    await RemoveRider ( lone, "caught alone by the Owdi" );
+
+                    await Pause ( "Continue" );
+                }
+
+                continue;
+            }
 
             activeBikeIndex = bikeIndex;
 
@@ -70,6 +105,17 @@ public partial class RoundEndController
         }
 
         FinalizeDiscussionUI ();
+
+        // Unattended runs have nobody to press End Voting.
+        if ( autoEndVoting && !quitting )
+        {
+            SetRoundLabel ( "Next round starting..." );
+
+            await WaitSeconds ( autoEndDelay );
+
+            if ( !quitting )
+                EndVoting ();
+        }
     }
 
     private async Task RunVoteForBike ()
@@ -519,7 +565,7 @@ public partial class RoundEndController
     private async Task RemoveRider ( int seat, string reason )
     {
         int fromBike = Game.slots[ seat ].bikeIndex;
-        int target = Game.FindBikeWithSpace ( fromBike );
+        int target = Game.FindBikeWithSpace ( fromBike, seat );
 
         LogConsole ( $"{SeatName ( seat )} is thrown off bike {fromBike + 1}." );
 
@@ -539,7 +585,15 @@ public partial class RoundEndController
         }
         else
         {
-            LogConsole ( "Every other bike is full. There is nowhere to go." );
+            // Distinguish "no room" from "barred" - they read very differently
+            // in a transcript.
+            bool barred = Game.FindBikeWithSpace ( fromBike ) >= 0;
+
+            LogConsole ( barred
+                ? $"{SeatName ( seat )} left that bike too recently to be allowed back."
+                : "Every other bike is full. There is nowhere to go." );
+
+            LogPhaseEvent ( barred ? "join_barred_cooldown" : "join_no_space", seat, "" );
         }
 
         bool isHuman = seat == PlayerSeat && HumanIsPlaying;
@@ -671,13 +725,35 @@ public partial class RoundEndController
             : $"bike {activeBikeIndex + 1}";
     }
 
+    /// <summary>
+    /// Pulls a number out of whatever the model wrote. "20" and "20 points"
+    /// both work; anything with no digits reads as nothing offered.
+    /// </summary>
+    private int ParseAmount ( string text )
+    {
+        if ( string.IsNullOrEmpty ( text ) )
+            return 0;
+
+        string digits = string.Empty;
+
+        foreach ( char c in text )
+        {
+            if ( char.IsDigit ( c ) )
+                digits += c;
+            else if ( digits.Length > 0 )
+                break;
+        }
+
+        return int.TryParse ( digits, out int value ) ? value : 0;
+    }
+
     /// <summary>Reads a bribe offer from the candidate's reply.</summary>
     private void RecordBribe ( int seat, LLMVoteResponse parsed )
     {
         if ( parsed == null || seat != pendingJoinerSeat )
             return;
 
-        int offered = Mathf.Clamp ( parsed.bribe, 0, Game.GetScore ( seat ) );
+        int offered = Mathf.Clamp ( ParseAmount ( parsed.bribe ), 0, Game.GetScore ( seat ) );
 
         pendingBribe = offered;
         pendingBribeTargetSeat = -1;

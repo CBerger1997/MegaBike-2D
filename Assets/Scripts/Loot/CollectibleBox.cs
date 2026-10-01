@@ -25,8 +25,11 @@ public class CollectibleBox : MonoBehaviour
     [Tooltip ( "Points for every other rider on the bike." )]
     public int otherColourPoints = 1;
 
-    [Tooltip ( "Stamina restored to every rider on the bike." )]
-    public float staminaForAll = 20f;
+    [Tooltip ( "Stamina for a rider whose colour matches this box." )]
+    public float staminaForMatching = 20f;
+
+    [Tooltip ( "Stamina for every other rider aboard. Keep this low or nobody ever tires." )]
+    public float staminaForOthers = 4f;
 
     private SpriteRenderer spriteRenderer;
     private TargetManager targetManager;
@@ -101,6 +104,12 @@ public class CollectibleBox : MonoBehaviour
         }
 
         Destroy ( gameObject );
+    }
+
+    /// <summary>How much stamina this box gives a rider of the given colour.</summary>
+    public float StaminaFor ( GameController.PlayerColour riderColour )
+    {
+        return riderColour == boxColour ? staminaForMatching : staminaForOthers;
     }
 
     /// <summary>Nearest uncollected box of a given colour. Null if none left.</summary>

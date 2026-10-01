@@ -162,12 +162,15 @@ public class OwdiDirector : MonoBehaviour
 
         spawnPos = new Vector2 ( Mathf.Cos ( angle ), Mathf.Sin ( angle ) ) * radius;
 
-        if ( bike != null && Random.value < aimAtBikeChance )
+        // Aim at a bike that still has riders, not necessarily bike 0.
+        MegaBikeController aimAt = PickOccupiedBike ();
+
+        if ( aimAt != null && Random.value < aimAtBikeChance )
         {
             // Aim at where the bike is NOW, plus scatter. It will have moved by
             // the time the car arrives - that gap is the dodge window.
             Vector2 aimPoint =
-                ( Vector2 ) bike.transform.position +
+                ( Vector2 ) aimAt.transform.position +
                 Random.insideUnitCircle * aimScatter;
 
             direction = ( aimPoint - spawnPos ).normalized;
@@ -180,6 +183,28 @@ public class OwdiDirector : MonoBehaviour
 
             direction = ( acrossPoint - spawnPos ).normalized;
         }
+    }
+
+    /// <summary>A bike at random from those that still have riders, or null.</summary>
+    private MegaBikeController PickOccupiedBike ()
+    {
+        GameController game = GameController.instance;
+
+        if ( game == null )
+            return bike;
+
+        List<MegaBikeController> occupied = new List<MegaBikeController> ();
+
+        for ( int b = 0; b < game.bikes.Count; b++ )
+        {
+            if ( game.bikes[ b ] != null && game.RidersOnBike ( b ) > 0 )
+                occupied.Add ( game.bikes[ b ] );
+        }
+
+        if ( occupied.Count == 0 )
+            return null;
+
+        return occupied[ Random.Range ( 0, occupied.Count ) ];
     }
 
     /// <summary>Manual trigger, e.g. for a scripted attack at the two-minute mark.</summary>

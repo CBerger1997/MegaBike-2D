@@ -151,8 +151,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c388dd1187ebc648b211441d25185a5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CollectibleBox
-  scoreValue: 1
-  normalScale: 1
-  selectedScale: 1.25
   boxColour: 0
-  onlyConsumeMatchingColour: 0
+  matchingColourPoints: 2
+  otherColourPoints: 1
+  staminaForMatching: 20
+  staminaForOthers: 3

@@ -67,10 +67,19 @@ public class PlayerRider : MonoBehaviour, IRider
             staminaSlider.value = stamina;
     }
 
-    /// <summary>Called by CollectibleBox. Scoring is handled by GameController.</summary>
+    /// <summary>
+    /// Called by CollectibleBox. The amount depends on whether the box matched
+    /// this rider's colour - otherwise a busy bike keeps everyone topped up
+    /// and stamina stops meaning anything.
+    /// </summary>
     public void ReceiveLoot ( CollectibleBox box )
     {
-        IncreaseStamina ();
+        float amount = box != null ? box.StaminaFor ( playerColour ) : staminaPerLootBox;
+
+        stamina = Mathf.Clamp ( stamina + amount, 0f, maxStamina );
+
+        if ( staminaSlider != null )
+            staminaSlider.value = stamina;
     }
 
     private void Update ()

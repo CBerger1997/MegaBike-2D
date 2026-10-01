@@ -32,7 +32,10 @@ public partial class RoundEndController : MonoBehaviour
         public string votedColor;        // binding phases
         public string currentIntention;  // discussion / plea rounds
         public string method;            // method vote: "Group" or "Leader"
-        public int bribe;                // join plea: points offered
+        // Deliberately a string. A model that writes "bribe": "20" instead of
+        // 20 would otherwise fail the whole parse, and the reply was discarded
+        // along with the dialogue.
+        public string bribe;             // join plea: points offered
         public string bribeTarget;       // join plea: "Bike" or a player name
     }
 
@@ -100,6 +103,12 @@ public partial class RoundEndController : MonoBehaviour
 
     [Tooltip ( "Continue automatically after this many seconds. 0 waits indefinitely." )]
     public float autoContinueSeconds = 0f;
+
+    [Tooltip ( "Start the next round without waiting for the End Voting button. For unattended runs." )]
+    public bool autoEndVoting = false;
+
+    [Tooltip ( "Seconds to leave the result on screen before the next round begins." )]
+    [Range ( 0f, 15f )] public float autoEndDelay = 3f;
 
     [Tooltip ( "Button shown while waiting. Optional if continueOnAnyClick is on." )]
     [SerializeField] private Button continueButton;
@@ -367,6 +376,18 @@ public partial class RoundEndController : MonoBehaviour
 
         if ( continueButton != null )
             continueButton.gameObject.SetActive ( false );
+    }
+
+    /// <summary>
+    /// Frame-based wait. Task.Delay would resume off the main thread, which
+    /// is not safe for anything that touches Unity objects afterwards.
+    /// </summary>
+    private async Task WaitSeconds ( float seconds )
+    {
+        float until = Time.unscaledTime + Mathf.Max ( 0f, seconds );
+
+        while ( !quitting && Time.unscaledTime < until )
+            await Task.Yield ();
     }
 
     public void ContinuePressed ()

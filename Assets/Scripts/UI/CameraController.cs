@@ -19,7 +19,7 @@ public class CameraController : MonoBehaviour
                 Camera.main.orthographicSize -= 1;
             }
 
-            Mathf.Clamp ( Camera.main.orthographicSize, 25, 100 );
+            Camera.main.orthographicSize = Mathf.Clamp ( Camera.main.orthographicSize, 15, 40 );
 
             if ( Input.GetMouseButtonDown ( 0 ) )
             {

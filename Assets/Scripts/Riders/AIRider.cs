@@ -61,6 +61,10 @@ public class AIRider : MonoBehaviour, IRider
 
     [Header ( "Meta parameters" )]
     public float valueLerpSpeed = 5f;               // steering smoothing
+
+    [Tooltip ( "Fastest a rider can swing their steering. Stops erratic riders spinning on the spot." )]
+    [Range ( 45f, 720f )] public float maxTurnDegreesPerSecond = 220f;
+
     [Range ( 0f, 2f )] public float hungerEffortMult = 0.3f;   // effort multiplier at zero stamina
     [Range ( 0f, 3f )] public float hungerSelfishnessMult = 1.5f;   // selfishness multiplier at zero stamina
     public float selfishWorkMult = 1.5f;            // extra power when acting selfishly
@@ -90,8 +94,11 @@ public class AIRider : MonoBehaviour, IRider
     [Tooltip ( "Chance a Subversive rider decides to follow the rules, re-rolled each decision." )]
     [Range ( 0f, 1f )] public float subversiveComplyChance = 0.5f;
 
-    [Tooltip ( "Effort a defying rider puts in, as a fraction of what the rules demand." )]
+    [Tooltip ( "Effort a defying rider puts in when a leader controls the steering - their only protest is the pedals." )]
     [Range ( 0f, 1f )] public float defianceEffortMult = 0.25f;
+
+    [Tooltip ( "Effort a defying rider puts in when they CAN steer. High: they work hard, just not where the group agreed." )]
+    [Range ( 0f, 1.5f )] public float defiantEffortMult = 0.95f;
 
     [Tooltip ( "Extra effort a rider puts in when they agree with the rules." )]
     [Range ( 1f, 2f )] public float complianceEffortBonus = 1f;
@@ -115,6 +122,8 @@ public class AIRider : MonoBehaviour, IRider
     private RiderInput riderInput;
     private Intent intent = Intent.FollowGroup;
     private Vector2 smoothedInput;
+    private Vector2 smoothedDir = Vector2.up;
+    private float smoothedPower;
     private Vector2 wanderDirection = Vector2.up;
     private float decisionTimer;
     private float retargetTimer;
@@ -221,18 +230,36 @@ public class AIRider : MonoBehaviour, IRider
 
         Vector2 desired = BuildDesiredInput ();
 
-        // Frame-rate independent smoothing.
-        smoothedInput = Vector2.Lerp (
-            smoothedInput,
-            desired,
+        float desiredPower = Mathf.Clamp01 ( desired.magnitude );
+
+        Vector2 desiredDir = desired.sqrMagnitude > 0.0001f
+            ? desired.normalized
+            : smoothedDir;
+
+        // Rotate towards the new direction at a capped rate. Lerping the
+        // vector instead sent it through zero whenever the direction flipped,
+        // and normalising a near-zero vector is what made the arrow spin.
+        smoothedDir = Vector3.RotateTowards (
+            smoothedDir,
+            desiredDir,
+            maxTurnDegreesPerSecond * Mathf.Deg2Rad * dt,
+            0f
+        );
+
+        if ( smoothedDir.sqrMagnitude > 0.0001f )
+            smoothedDir.Normalize ();
+
+        smoothedPower = Mathf.Lerp (
+            smoothedPower,
+            desiredPower,
             1f - Mathf.Exp ( -valueLerpSpeed * dt )
         );
 
-        Vector2 clamped = Vector2.ClampMagnitude ( smoothedInput, 1f );
+        // Kept for GroupDirection's fallback.
+        smoothedInput = smoothedDir * smoothedPower;
 
-        // Direction and effort are now separate channels.
-        riderInput.steerInput = clamped.sqrMagnitude > 0.0001f ? clamped.normalized : Vector2.zero;
-        riderInput.pedalInput = RuleEffort () * clamped.magnitude;
+        riderInput.steerInput = smoothedPower > 0.01f ? smoothedDir : Vector2.zero;
+        riderInput.pedalInput = RuleEffort () * smoothedPower;
 
         DrainStamina ( dt );
         UpdateArrow ();
@@ -288,7 +315,8 @@ public class AIRider : MonoBehaviour, IRider
 
             case Personality.Subversive:
 
-                if ( Random.value <= sabotageChance )
+                // When it turns, it turns properly rather than going limp.
+                if ( !Complying && Random.value <= sabotageChance )
                 {
                     intent = Intent.Sabotage;
                     break;
@@ -301,9 +329,12 @@ public class AIRider : MonoBehaviour, IRider
 
             case Personality.Opposing:
 
-                intent = roll < s ? Intent.OwnLoot
-                       : roll < s + agreeableness * ( 1f - s ) ? Intent.FollowGroup
-                       : Intent.Oppose;
+                // Pulls against the group first, looks after itself second,
+                // and only rarely goes along with anything. Selfishness used
+                // to dominate here, which read as greed rather than dissent.
+                intent = roll < 0.55f ? Intent.Oppose
+                       : roll < 0.85f ? Intent.OwnLoot
+                       : Intent.FollowGroup;
                 break;
         }
 
@@ -391,7 +422,12 @@ public class AIRider : MonoBehaviour, IRider
         }
 
         Vector2 dir;
-        float power = EffectiveEffort ();
+
+        // Intent strength only. The actual pedal effort - agreed rules, stamina
+        // and compliance - is applied once, in RuleEffort. Starting from
+        // EffectiveEffort here counted the rider's effort and tiredness twice
+        // and left every bike crawling.
+        float power = 1f;
 
         switch ( intent )
         {
@@ -572,12 +608,25 @@ public class AIRider : MonoBehaviour, IRider
         // by the baseline leaves just the stamina factor.
         float staminaFactor = effort > 0.01f ? EffectiveEffort () / effort : 1f;
 
-        float willingness = Complying ? complianceEffortBonus : defianceEffortMult;
+        float willingness;
 
-        // Refusing to pedal is a louder protest when there's a leader to
-        // protest against.
-        if ( !Complying && UnderLeader )
-            willingness *= 0.6f;
+        if ( Complying )
+        {
+            willingness = complianceEffortBonus;
+        }
+        else if ( UnderLeader )
+        {
+            // A leader holds the handlebars, so steering elsewhere is not an
+            // option. Withholding labour is the only protest left.
+            willingness = defianceEffortMult;
+        }
+        else
+        {
+            // Otherwise a defiant rider works hard - they just drag the bike
+            // somewhere the group did not agree on. Slacking would make them
+            // indistinguishable from a lazy rider.
+            willingness = defiantEffortMult;
+        }
 
         if ( personality == Personality.Lazy )
             willingness *= lazyEffortMult;
@@ -610,7 +659,11 @@ public class AIRider : MonoBehaviour, IRider
 
     public void ReceiveLoot ( CollectibleBox box )
     {
-        stamina = Mathf.Clamp ( stamina + staminaPerLootBox, 0f, maxStamina );
+        // Off-colour boxes give far less, so a bike collecting constantly does
+        // not keep every rider permanently full.
+        float amount = box != null ? box.StaminaFor ( playerColour ) : staminaPerLootBox;
+
+        stamina = Mathf.Clamp ( stamina + amount, 0f, maxStamina );
 
         if ( box != null && ownTarget == box )
             ownTarget = null;
@@ -708,13 +761,15 @@ public class AIRider : MonoBehaviour, IRider
                 break;
 
             case Personality.Subversive:
-                decisionInterval = 0.7f;
-                determination = 0.20f;
+                // Changes its mind often, but not several times a second -
+                // at 0.7s and half-random it was visibly spinning.
+                decisionInterval = 1.4f;
+                determination = 0.35f;
                 selfishness = 0.60f;
                 agreeableness = 0.40f;
                 effort = 0.70f;
-                volatility = 0.50f;
-                sabotageChance = 0.60f;
+                volatility = 0.35f;
+                sabotageChance = 0.50f;
                 hungerEffortMult = 0.30f;
                 break;
 

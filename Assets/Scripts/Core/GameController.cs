@@ -17,8 +17,11 @@ public partial class GameController : MonoBehaviour
 
     public enum PlayerColour
     {
-        Red, Blue, Green, Yellow, Pink, Purple, Orange, Cyan, Brown, White
+        Red, Blue, Green, Yellow, Pink, Purple, Orange, Cyan
     }
+
+    /// <summary>How many colours exist. Riders may share one.</summary>
+    public static int ColourCount => System.Enum.GetValues ( typeof ( PlayerColour ) ).Length;
 
     public const int MinRiders = 6;
     public const int MaxRiders = 10;
@@ -40,6 +43,12 @@ public partial class GameController : MonoBehaviour
         public bool thinksHuman;
 
         public bool inPlay = true;
+
+        [Tooltip ( "Bike this rider was last thrown off, or -1." )]
+        public int lastBikeLeft = -1;
+
+        [Tooltip ( "Round they were thrown off it." )]
+        public int lastLeftRound = -1;
     }
 
     public static GameController instance;

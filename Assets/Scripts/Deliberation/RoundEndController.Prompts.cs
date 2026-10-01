@@ -255,7 +255,8 @@ public partial class RoundEndController
                     p.AppendLine ( "You only pay if they accept you." );
                     p.AppendLine ( "RULES:" );
                     p.AppendLine ( "1. Make your case in one or two sentences." );
-                    p.AppendLine ( "2. Set \"bribe\" to the points you offer, 0 for nothing." );
+                    p.AppendLine ( "2. Set \"bribe\" to the number of points you offer, or 0." );
+                    p.AppendLine ( "   Offering nothing when you hold points rarely persuades anyone." );
                     p.AppendLine ( $"3. Set \"bribeTarget\" to \"Bike\" or one of: {options}" );
                     p.AppendLine ( "4. Respond ONLY in valid JSON:" );
                     p.AppendLine ( "{" );
@@ -398,9 +399,12 @@ public partial class RoundEndController
                     p.AppendLine ( "This bike has NO rules yet. Nothing is decided until you decide it." );
 
                 p.AppendLine ( "The bike must agree HOW HARD everyone pedals." );
-                p.AppendLine ( "Rest: nobody pedals and the bike does not move. No stamina used." );
+                p.AppendLine ( "Rest: nobody pedals and the bike DOES NOT MOVE AT ALL." );
                 p.AppendLine ( "Light, Steady, Hard: progressively faster, and progressively tiring." );
                 p.AppendLine ( "Steering costs nothing - only pedalling drains stamina." );
+                p.AppendLine ( "A stationary bike collects no loot, so nobody regains stamina," );
+                p.AppendLine ( "and the Owdi finds a parked bike far easier to hit." );
+                p.AppendLine ( "Resting to save stamina usually costs more than it saves." );
                 p.AppendLine ( "RULES:" );
                 p.AppendLine ( $"1. Answer exactly one of: {options}" );
                 p.AppendLine ( "2. Say why, considering your own stamina and the Owdi." );

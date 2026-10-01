@@ -196,11 +196,19 @@ public partial class RoundEndController
     /// </summary>
     private bool StillAboard ( int seat )
     {
-        return Game != null &&
-               seat >= 0 && seat < Game.slots.Count &&
-               Game.slots[ seat ].inPlay &&
-               Game.slots[ seat ].bikeIndex == activeBikeIndex &&
-               Game.SeatIsActive ( seat );
+        if ( Game == null || seat < 0 || seat >= Game.slots.Count )
+            return false;
+
+        if ( !Game.slots[ seat ].inPlay || !Game.SeatIsActive ( seat ) )
+            return false;
+
+        // Someone asking to join is by definition not on this bike yet, but
+        // they must be allowed to make their case. Without this they were
+        // silently skipped and never got to offer anything.
+        if ( seat == pendingJoinerSeat )
+            return true;
+
+        return Game.slots[ seat ].bikeIndex == activeBikeIndex;
     }
 
     private bool SeatPersonalityIs ( int seat, AIRider.Personality p )

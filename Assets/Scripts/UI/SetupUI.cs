@@ -193,7 +193,10 @@ public class SetupUI : MonoBehaviour
             dropdown.AddOptions ( options );
 
             int index = row;
-            int startingColour = Mathf.Min ( row, optionStrings.Length - 1 );
+            // Random rather than by row, so every rider always lands on a real
+            // colour even when there are more rows than colours.
+            int available = Mathf.Min ( optionStrings.Length, optionColors.Count );
+            int startingColour = UnityEngine.Random.Range ( 0, Mathf.Max ( 1, available ) );
 
             dropdown.SetValueWithoutNotify ( startingColour );
             dropdown.RefreshShownValue ();

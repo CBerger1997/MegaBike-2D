@@ -76,9 +76,9 @@ public partial class RoundEndController
 
         SessionLogger.instance.LogUtterance (
             voteCycle,
-            activeBikeIndex,
+            activeBikeIndex + 1,
             cycleType,
-            phase.ToString (),
+            PhaseLabel ( phase ),
             phaseRoundNumber,
             seat,
             SeatName ( seat ),
@@ -95,6 +95,45 @@ public partial class RoundEndController
         );
     }
 
+    /// <summary>
+    /// Log-friendly phase names. The enum members are shorthand; these are
+    /// what a reader of the CSV actually needs to see.
+    /// </summary>
+    private string PhaseLabel ( Phase p )
+    {
+        switch ( p )
+        {
+            case Phase.Discussion:
+                return "Discussion";
+            case Phase.MethodVote:
+                return "LeadershipVote";
+            case Phase.GroupVote:
+                return "EliminationVote";
+            case Phase.LeaderElection:
+                return "LeaderElection";
+            case Phase.LeaderPlea:
+                return "PleaToLeader";
+            case Phase.LeaderDecision:
+                return "LeaderDecision";
+            case Phase.TermVote:
+                return "TermLengthVote";
+            case Phase.RulesChangeVote:
+                return "RulesReopenVote";
+            case Phase.RulesTarget:
+                return "RulesColourVote";
+            case Phase.RulesEffort:
+                return "RulesEffortVote";
+            case Phase.JoinPlea:
+                return "JoinNegotiation";
+            case Phase.JoinVote:
+                return "JoinVote";
+            case Phase.Succession:
+                return "Succession";
+        }
+
+        return p.ToString ();
+    }
+
     private void LogPhaseEvent ( string eventName, int subjectSeat, string detail )
     {
         if ( SessionLogger.instance == null )
@@ -102,11 +141,12 @@ public partial class RoundEndController
 
         SessionLogger.instance.LogEvent (
             voteCycle,
-            phase.ToString (),
+            activeBikeIndex + 1,
+            PhaseLabel ( phase ),
             eventName,
             subjectSeat,
             subjectSeat >= 0 ? SeatName ( subjectSeat ) : "",
-            $"bike:{activeBikeIndex + 1};{detail}",
+            detail,
             Game != null ? Game.ScoresSummary () : ""
         );
     }
@@ -365,9 +405,12 @@ public partial class RoundEndController
 
     public void EndVoting ()
     {
-        uiManager.StartRound ();
-        GameController.instance.gameState = GameController.GameState.Running;
         gameObject.SetActive ( false );
+
+        // UIManager decides whether this resumes an interrupted round or
+        // starts the next one.
+        if ( uiManager != null )
+            uiManager.ResumeAfterVote ();
     }
 
     private void ShuffleIndices ()

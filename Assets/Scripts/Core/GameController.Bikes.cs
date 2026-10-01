@@ -96,6 +96,47 @@ public partial class GameController
     }
 
     /// <summary>A bike other than the one given that has room, or -1.</summary>
+    /// <summary>
+    /// False while a rider is barred from returning to the bike that just
+    /// threw them off. Without this, two under-strength bikes pass the same
+    /// rider back and forth every time either of them is hit.
+    /// </summary>
+    public bool CanJoinBike ( int seat, int bikeIndex )
+    {
+        if ( transferCooldownRounds <= 0 || seat < 0 || seat >= slots.Count )
+            return true;
+
+        RiderSlot slot = slots[ seat ];
+
+        if ( slot.lastBikeLeft != bikeIndex )
+            return true;
+
+        return roundNumber - slot.lastLeftRound >= transferCooldownRounds;
+    }
+
+    /// <summary>
+    /// A bike other than the one given that has room. Pass a seat to respect
+    /// that rider's cooldown.
+    /// </summary>
+    public int FindBikeWithSpace ( int excludingBike, int seat )
+    {
+        for ( int b = 0; b < bikes.Count; b++ )
+        {
+            if ( b == excludingBike || bikes[ b ] == null )
+                continue;
+
+            if ( RidersOnBike ( b ) >= bikeCapacity )
+                continue;
+
+            if ( !CanJoinBike ( seat, b ) )
+                continue;
+
+            return b;
+        }
+
+        return -1;
+    }
+
     public int FindBikeWithSpace ( int excludingBike )
     {
         for ( int b = 0; b < bikes.Count; b++ )
@@ -141,9 +182,9 @@ public partial class GameController
             if ( SessionLogger.instance != null )
             {
                 SessionLogger.instance.LogEvent (
-                    -1, "Transfer", "transferred", seat,
-                    slots[ seat ].colour.ToString (),
-                    $"from:{fromBike + 1};to:{toBike + 1}",
+                    -1, toBike + 1, "Transfer", "transferred", seat,
+                    DisplayName ( seat ),
+                    $"from_bike:{fromBike + 1};colour:{slots[ seat ].colour}",
                     ScoresSummary ()
                 );
             }
@@ -166,9 +207,9 @@ public partial class GameController
         if ( SessionLogger.instance != null )
         {
             SessionLogger.instance.LogEvent (
-                -1, "Elimination", "eliminated", seat,
-                slots[ seat ].colour.ToString (),
-                slots[ seat ].isAI ? "ai" : "human"
+                -1, slots[ seat ].bikeIndex + 1, "Elimination", "eliminated", seat,
+                DisplayName ( seat ),
+                $"colour:{slots[ seat ].colour};driver:{( slots[ seat ].isAI ? "ai" : "human" )}"
             );
         }
 

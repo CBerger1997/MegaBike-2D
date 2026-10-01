@@ -225,6 +225,16 @@ public class OwdiController : MonoBehaviour
         if ( !other.CompareTag ( bikeTag ) )
             return;
 
+        MegaBikeController struck = other.GetComponentInParent<MegaBikeController> ();
+
+        // An abandoned bike is scenery. Hitting it produces a vote with nobody
+        // in it and fills the log with meaningless events.
+        if ( struck != null && GameController.instance != null &&
+             GameController.instance.RidersOnBike ( struck.bikeIndex ) == 0 )
+        {
+            return;
+        }
+
         lastHitTime = Time.time;
 
         MegaBikeController hitBike = other.GetComponentInParent<MegaBikeController> ();

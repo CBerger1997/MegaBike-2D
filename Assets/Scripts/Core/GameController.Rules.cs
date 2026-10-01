@@ -36,8 +36,8 @@ public partial class GameController
         if ( SessionLogger.instance != null )
         {
             SessionLogger.instance.LogEvent (
-                -1, "Rules", "rules_set", -1, "",
-                $"bike:{bikeIndex + 1};{rules.Describe ()}",
+                -1, bikeIndex + 1, "Rules", "rules_set", -1, "",
+                rules.Describe (),
                 ScoresSummary ()
             );
         }
@@ -56,9 +56,9 @@ public partial class GameController
         if ( SessionLogger.instance != null && seat >= 0 )
         {
             SessionLogger.instance.LogEvent (
-                -1, "Leadership", "leader_set", seat,
-                seat < slots.Count ? slots[ seat ].colour.ToString () : "",
-                $"bike:{bikeIndex + 1}",
+                -1, bikeIndex + 1, "Leadership", "leader_set", seat,
+                seat < slots.Count ? DisplayName ( seat ) : "",
+                $"colour:{( seat < slots.Count ? slots[ seat ].colour.ToString () : "" )}",
                 ScoresSummary ()
             );
         }
@@ -76,14 +76,8 @@ public partial class GameController
         bikes[ bikeIndex ].termRounds = rounds;
         bikes[ bikeIndex ].governanceExpiresRound = roundNumber + Mathf.Max ( 1, rounds );
 
-        if ( SessionLogger.instance != null )
-        {
-            SessionLogger.instance.LogEvent (
-                -1, "Governance", "term_set", -1, "",
-                $"bike:{bikeIndex + 1};rounds:{rounds};expires_after:{bikes[ bikeIndex ].governanceExpiresRound}",
-                ScoresSummary ()
-            );
-        }
+        // The deliberation logs term_agreed with the vote behind it, so
+        // nothing is recorded here.
     }
 
     /// <summary>True once the agreed term has run out.</summary>
@@ -104,6 +98,9 @@ public partial class GameController
 
         return Mathf.Max ( 0, bikes[ bikeIndex ].governanceExpiresRound - roundNumber );
     }
+
+    [Tooltip ( "Rounds before a thrown-off rider may return to the bike that removed them. 0 disables." )]
+    public int transferCooldownRounds = 1;
 
     public int LeaderOfBike ( int bikeIndex )
     {

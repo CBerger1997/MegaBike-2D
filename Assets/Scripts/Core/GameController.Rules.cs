@@ -99,7 +99,18 @@ public partial class GameController
         return Mathf.Max ( 0, bikes[ bikeIndex ].governanceExpiresRound - roundNumber );
     }
 
-    [Tooltip ( "Rounds before a thrown-off rider may return to the bike that removed them. 0 disables." )]
+    // ------------------------------------------------------------------
+    // Transfers between bikes
+    // ------------------------------------------------------------------
+
+    [Header ( "Bike transfers" )]
+    [Tooltip ( "When off, a thrown-off rider is out of the game immediately: " +
+               "no join plea, no bribe, no join vote. Turn on to allow a removed " +
+               "rider to negotiate a seat on another bike." )]
+    public bool allowBikeTransfers = false;
+
+    [Tooltip ( "Rounds before a thrown-off rider may return to the bike that removed them. 0 disables. " +
+               "Only used when allowBikeTransfers is on." )]
     public int transferCooldownRounds = 1;
 
     public int LeaderOfBike ( int bikeIndex )

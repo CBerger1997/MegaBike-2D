@@ -95,7 +95,6 @@ public partial class GameController
         return result;
     }
 
-    /// <summary>A bike other than the one given that has room, or -1.</summary>
     /// <summary>
     /// False while a rider is barred from returning to the bike that just
     /// threw them off. Without this, two under-strength bikes pass the same
@@ -103,6 +102,10 @@ public partial class GameController
     /// </summary>
     public bool CanJoinBike ( int seat, int bikeIndex )
     {
+        // Transfers switched off entirely: nobody may move, ever.
+        if ( !allowBikeTransfers )
+            return false;
+
         if ( transferCooldownRounds <= 0 || seat < 0 || seat >= slots.Count )
             return true;
 
@@ -120,6 +123,9 @@ public partial class GameController
     /// </summary>
     public int FindBikeWithSpace ( int excludingBike, int seat )
     {
+        if ( !allowBikeTransfers )
+            return -1;
+
         for ( int b = 0; b < bikes.Count; b++ )
         {
             if ( b == excludingBike || bikes[ b ] == null )
@@ -137,6 +143,11 @@ public partial class GameController
         return -1;
     }
 
+    /// <summary>
+    /// Room on another bike, ignoring cooldowns. Used to tell "barred" apart
+    /// from "full" in the transcript, so it deliberately does NOT consult
+    /// allowBikeTransfers.
+    /// </summary>
     public int FindBikeWithSpace ( int excludingBike )
     {
         for ( int b = 0; b < bikes.Count; b++ )
@@ -165,7 +176,10 @@ public partial class GameController
             return RemovalOutcome.Ignored;
 
         int fromBike = slots[ seat ].bikeIndex;
-        int toBike = FindBikeWithSpace ( fromBike );
+
+        // Seat-aware overload, so this path honours both the toggle and the
+        // cooldown rather than silently moving people when transfers are off.
+        int toBike = FindBikeWithSpace ( fromBike, seat );
 
         if ( toBike >= 0 )
         {

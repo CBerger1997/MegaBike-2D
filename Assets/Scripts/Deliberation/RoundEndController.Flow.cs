@@ -565,7 +565,11 @@ public partial class RoundEndController
     private async Task RemoveRider ( int seat, string reason )
     {
         int fromBike = Game.slots[ seat ].bikeIndex;
-        int target = Game.FindBikeWithSpace ( fromBike, seat );
+        bool transfersOn = Game.allowBikeTransfers;
+
+        // With transfers off the seat-aware lookup always refuses, so don't
+        // even ask - removal is final and there is nothing to negotiate.
+        int target = transfersOn ? Game.FindBikeWithSpace ( fromBike, seat ) : -1;
 
         LogConsole ( $"{SeatName ( seat )} is thrown off bike {fromBike + 1}." );
 
@@ -583,6 +587,13 @@ public partial class RoundEndController
                 return;
             }
         }
+        else if ( !transfersOn )
+        {
+            // Logged so the condition is visible in the events CSV rather than
+            // having to be inferred from the absence of join rows.
+            LogConsole ( "There is no second seat to beg for. Removal is final." );
+            LogPhaseEvent ( "join_disabled", seat, "transfers:off" );
+        }
         else
         {
             // Distinguish "no room" from "barred" - they read very differently
@@ -598,13 +609,23 @@ public partial class RoundEndController
 
         bool isHuman = seat == PlayerSeat && HumanIsPlaying;
 
-        LogConsole ( isHuman
-            ? "Nobody will take you. You are out. GAME OVER."
-            : $"Nobody will take {SeatName ( seat )}. They are out." );
+        if ( transfersOn )
+        {
+            LogConsole ( isHuman
+                ? "Nobody will take you. You are out. GAME OVER."
+                : $"Nobody will take {SeatName ( seat )}. They are out." );
+        }
+        else
+        {
+            LogConsole ( isHuman
+                ? "You are out. GAME OVER."
+                : $"{SeatName ( seat )} is out." );
+        }
 
         Game.EliminateSeat ( seat );
 
-        LogPhaseEvent ( "removed_eliminated", seat, $"reason:{reason}" );
+        LogPhaseEvent ( "removed_eliminated", seat,
+            $"reason:{reason};transfers:{( transfersOn ? "on" : "off" )}" );
     }
 
     /// <summary>

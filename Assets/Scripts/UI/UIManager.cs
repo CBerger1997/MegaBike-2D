@@ -152,6 +152,15 @@ public class UIManager : MonoBehaviour
             );
         }
 
+        // Loot is the only stamina income, so the map is replenished before
+        // each round rather than being stripped once and never refilled.
+        LootBoxSpawner spawner = FindFirstObjectByType<LootBoxSpawner> ();
+
+        if ( spawner != null )
+            spawner.TopUp ();
+        else
+            Debug.LogWarning ( "UIManager: no LootBoxSpawner found, loot will not be replenished." );
+
         if ( endText != null )
             endText.text = "";
 

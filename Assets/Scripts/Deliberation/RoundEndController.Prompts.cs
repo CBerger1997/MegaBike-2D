@@ -184,11 +184,13 @@ public partial class RoundEndController
             case Phase.Discussion:
 
                 p.AppendLine ( "This is a DISCUSSION round. No one is removed yet." );
+                p.AppendLine ( "The rider you name is the one you want THROWN OFF the bike." );
+                p.AppendLine ( "Name the rider you want REMOVED, never the one you want to keep." );
                 p.AppendLine ( "RULES:" );
                 p.AppendLine ( $"1. Your answer MUST be one of: {options}" );
                 p.AppendLine ( "2. Accuse, defend yourself, or respond to what others said." );
                 p.AppendLine ( "3. Give your REASON. Say why you suspect them, or why they are wrong about you." );
-                p.AppendLine ( "4. State who you are CURRENTLY leaning towards. You may change this later." );
+                p.AppendLine ( "4. State who you are CURRENTLY leaning towards REMOVING. You may change this later." );
                 p.AppendLine ( "5. Do not simply repeat your previous line." );
                 p.AppendLine ( "6. Respond ONLY in valid JSON:" );
                 p.AppendLine ( "{" );
@@ -200,6 +202,8 @@ public partial class RoundEndController
             case Phase.GroupVote:
 
                 p.AppendLine ( "This is the FINAL VOTE. Your choice is binding." );
+                p.AppendLine ( "The rider you name is THROWN OFF the bike and out of the game." );
+                p.AppendLine ( "Name the rider you want REMOVED, never the one you want to keep." );
 
                 if ( NobodyAllowed )
                     p.AppendLine ( $"You may vote \"{NobodyName}\" if you believe no one should be removed." );
@@ -209,7 +213,9 @@ public partial class RoundEndController
                 p.AppendLine ( "RULES:" );
                 p.AppendLine ( $"1. Your answer MUST be one of: {options}" );
                 p.AppendLine ( "2. Justify it with a specific reason from the discussion." );
-                p.AppendLine ( "3. Respond ONLY in valid JSON:" );
+                p.AppendLine ( "3. Your spoken line must argue for REMOVING the rider you name. " +
+                               "Never say you are keeping, supporting or trusting them." );
+                p.AppendLine ( "4. Respond ONLY in valid JSON:" );
                 p.AppendLine ( "{" );
                 p.AppendLine ( "  \"dialogue\": \"Your short spoken line\"," );
                 p.AppendLine ( "  \"votedColor\": \"TargetColor\"" );
@@ -233,6 +239,8 @@ public partial class RoundEndController
             case Phase.LeaderPlea:
 
                 p.AppendLine ( $"{SeatName ( currentLeaderSeat ).ToUpper ()} is LEADER and decides alone." );
+                p.AppendLine ( "The rider you name is the one you want the leader to THROW OFF." );
+                p.AppendLine ( "Name the rider you want REMOVED, never the one you want to keep." );
                 p.AppendLine ( "RULES:" );
                 p.AppendLine ( $"1. Your answer MUST be one of: {options}" );
                 p.AppendLine ( "2. Speak directly to the leader. Argue for your survival, or against someone else." );
@@ -418,6 +426,8 @@ public partial class RoundEndController
             case Phase.LeaderDecision:
 
                 p.AppendLine ( "You are the LEADER. You alone decide. No one can overrule you." );
+                p.AppendLine ( "The rider you name is THROWN OFF the bike and out of the game." );
+                p.AppendLine ( "Name the rider you are REMOVING, never the one you want to keep." );
                 p.AppendLine ( $"You may answer \"{StepDownName}\" to give up the role instead." );
 
                 if ( NobodyAllowed )
@@ -428,7 +438,9 @@ public partial class RoundEndController
                 p.AppendLine ( "RULES:" );
                 p.AppendLine ( $"1. Your answer MUST be one of: {options}" );
                 p.AppendLine ( "2. Explain your decision, referencing what was said to you." );
-                p.AppendLine ( "3. Respond ONLY in valid JSON:" );
+                p.AppendLine ( "3. Your spoken line must say why that rider is going, not why they stay. " +
+                               $"To keep everyone, answer \"{NobodyName}\" instead." );
+                p.AppendLine ( "4. Respond ONLY in valid JSON:" );
                 p.AppendLine ( "{" );
                 p.AppendLine ( "  \"dialogue\": \"Your short spoken line\"," );
                 p.AppendLine ( "  \"votedColor\": \"TargetColor\"" );
@@ -543,6 +555,14 @@ public partial class RoundEndController
     {
         if ( parsed == null )
             return null;
+
+        // The method vote prompt asks for a "method" field, not "votedColor".
+        // Without this, every correct answer was rejected and re-asked: the
+        // leadership vote cost two model calls per rider, and the line that
+        // got logged was always the second attempt, written under a rejection
+        // notice. Falls through to the usual fields if the model used those.
+        if ( phase == Phase.MethodVote && !string.IsNullOrEmpty ( parsed.method ) )
+            return parsed.method;
 
         if ( IsBinding )
             return !string.IsNullOrEmpty ( parsed.votedColor ) ? parsed.votedColor : parsed.currentIntention;
